@@ -1,37 +1,33 @@
-FROM php:8.2-cli
+# Imagen base oficial de PHP con Composer incluido
+FROM composer:2 AS build
 
-# Instalar extensiones necesarias para Laravel
-RUN apt-get update && apt-get install -y \
-    libzip-dev unzip git curl libpng-dev libxml2-dev \
-    && docker-php-ext-configure zip \
-    && docker-php-ext-install pdo pdo_mysql zip bcmath mbstring exif pcntl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-# Instalar Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-WORKDIR /var/www/html
-
-# Copiar composer.json y composer.lock primero (para cache de dependencias)
+# Copiar composer y dependencias primero (para aprovechar la cache de Docker)
 COPY composer.json composer.lock ./
 
-RUN COMPOSER_MEMORY_LIMIT=-1 composer install \
-    --no-dev \
-    --optimize-autoloader \
-    --prefer-dist \
-    --no-interaction \
-    --no-scripts
+# Instalar dependencias de PHP de Laravel
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
 # Copiar el resto del proyecto
 COPY . .
 
-# Permisos
-RUN chown -R www-data:www-data storage bootstrap/cache
+# Etapa final
+FROM php:8.2-cli
 
-EXPOSE 8080
+WORKDIR /app
 
-# Iniciar Laravel con el servidor embebido en el puerto que Render asigna
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
+# Instalar extensiones mínimas necesarias
+RUN docker-php-ext-install pdo pdo_mysql
+
+# Copiar archivos desde la etapa de build
+COPY --from=build /app /app
+
+# Exponer el puerto
+EXPOSE 8000
+
+# Comando para iniciar Laravel
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
 
 
 
