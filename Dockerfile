@@ -1,38 +1,37 @@
-# Imagen base PHP con extensiones necesarias
-# Imagen base de PHP con extensiones necesarias
-# Etapa 1: PHP con dependencias
+# ---- Stage 1: Composer ----
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --prefer-dist --no-interaction --no-progress
+
+COPY . .
+RUN composer dump-autoload --optimize
+
+
+# ---- Stage 2: PHP-FPM + Nginx ----
 FROM php:8.2-fpm
 
-# Instalar extensiones requeridas por Laravel
-RUN docker-php-ext-install pdo pdo_mysql
+RUN apt-get update && apt-get install -y \
+    nginx \
+    libzip-dev unzip git curl libpng-dev libxml2-dev \
+    && docker-php-ext-install pdo pdo_mysql zip bcmath mbstring exif pcntl
 
-# Instalar Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=vendor /app /var/www/html
 
-# Copiar proyecto
-WORKDIR /var/www/html
-COPY . .
+# Configuración de Nginx (lo tomará de nginx.conf en raíz)
+RUN rm /etc/nginx/sites-enabled/default || true
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Instalar dependencias
-RUN composer install --no-dev --optimize-autoloader
-
-# Dar permisos de escritura
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Etapa 2: Nginx
-FROM nginx:alpine
-
-# Copiar config de nginx
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copiar app desde la primera etapa
-COPY --from=0 /var/www/html /var/www/html
-
 WORKDIR /var/www/html
 
-EXPOSE 8080
+EXPOSE 10000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD service nginx start && php-fpm
+
 
 
 
