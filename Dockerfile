@@ -26,5 +26,6 @@ RUN composer install --no-dev --optimize-autoloader
 EXPOSE 8000
 
 # Comando por defecto: correr Laravel
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=${PORT}"]
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+
 
