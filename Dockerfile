@@ -1,35 +1,43 @@
-# ---- Stage 1: Composer ----
+# Etapa 1: Dependencias con Composer
 FROM composer:2 AS vendor
-
 WORKDIR /app
-
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --prefer-dist --no-interaction --no-progress
-
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 COPY . .
-RUN composer dump-autoload --optimize
 
-
-# ---- Stage 2: PHP-FPM + Nginx ----
+# Etapa 2: Imagen final con PHP + Nginx
 FROM php:8.2-fpm
 
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     nginx \
-    libzip-dev unzip git curl libpng-dev libxml2-dev \
-    && docker-php-ext-install pdo pdo_mysql zip bcmath mbstring exif pcntl
-
-COPY --from=vendor /app /var/www/html
-
-# Configuración de Nginx (lo tomará de nginx.conf en raíz)
-RUN rm /etc/nginx/sites-enabled/default || true
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+    libzip-dev \
+    unzip \
+    git \
+    curl \
+    libpng-dev \
+    libxml2-dev \
+    && docker-php-ext-configure zip \
+    && docker-php-ext-install pdo pdo_mysql zip bcmath mbstring exif pcntl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
-EXPOSE 10000
+# Copiar dependencias de vendor
+COPY --from=vendor /app/vendor ./vendor
 
+# Copiar código fuente
+COPY . .
+
+# Copiar configuración de Nginx
+COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+
+# Permisos para Laravel
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 8080
+
+# Iniciar PHP-FPM y Nginx
 CMD service nginx start && php-fpm
 
 
