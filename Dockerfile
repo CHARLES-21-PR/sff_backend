@@ -7,7 +7,8 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 
 # Instalar dependencias de PHP de Laravel
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts
+
 
 # Copiar el resto del proyecto
 COPY . .
