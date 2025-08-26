@@ -1,31 +1,36 @@
 # Imagen base PHP con extensiones necesarias
+# Imagen base de PHP con extensiones necesarias
 FROM php:8.2-fpm
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
-    git curl libpng-dev libjpeg-dev libfreetype6-dev \
-    zip unzip libonig-dev libxml2-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+    libpng-dev libjpeg-dev libfreetype6-dev libzip-dev zip unzip git curl nginx \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd pdo pdo_mysql zip bcmath opcache
 
 # Instalar Composer
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Configurar directorio de trabajo
-WORKDIR /var/www
+# Crear directorio de la app
+WORKDIR /var/www/html
 
-# Copiar archivos del proyecto
+# Copiar el código
 COPY . .
 
 # Instalar dependencias de Laravel
 RUN composer install --no-dev --optimize-autoloader
 
+# Copiar configuración de Nginx
+COPY ./nginx.conf /etc/nginx/sites-available/default
 
 
 
-# Exponer puerto
-EXPOSE 8000
 
-# Comando por defecto: correr Laravel
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+# Exponer el puerto
+EXPOSE 8080
+
+# Comando para correr PHP-FPM y Nginx
+CMD service nginx start && php-fpm
+
 
 
