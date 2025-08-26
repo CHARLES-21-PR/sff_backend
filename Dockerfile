@@ -19,8 +19,8 @@ COPY . .
 # Instalar dependencias de Laravel
 RUN composer install --no-dev --optimize-autoloader
 
-# Generar key de Laravel
-RUN php artisan key:generate
+
+
 
 # Exponer puerto
 EXPOSE 8000
