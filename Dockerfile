@@ -1,36 +1,39 @@
 # Imagen base PHP con extensiones necesarias
 # Imagen base de PHP con extensiones necesarias
+# Etapa 1: PHP con dependencias
 FROM php:8.2-fpm
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
-    libpng-dev libjpeg-dev libfreetype6-dev libzip-dev zip unzip git curl nginx \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql zip bcmath opcache
+# Instalar extensiones requeridas por Laravel
+RUN docker-php-ext-install pdo pdo_mysql
 
 # Instalar Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Crear directorio de la app
+# Copiar proyecto
 WORKDIR /var/www/html
-
-# Copiar el código
 COPY . .
 
-# Instalar dependencias de Laravel
+# Instalar dependencias
 RUN composer install --no-dev --optimize-autoloader
 
-# Copiar configuración de Nginx
-COPY ./nginx.conf /etc/nginx/sites-available/default
+# Dar permisos de escritura
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Etapa 2: Nginx
+FROM nginx:alpine
 
+# Copiar config de nginx
+COPY ./nginx.conf /etc/nginx/conf.d/default.conf
 
+# Copiar app desde la primera etapa
+COPY --from=0 /var/www/html /var/www/html
 
-# Exponer el puerto
+WORKDIR /var/www/html
+
 EXPOSE 8080
 
-# Comando para correr PHP-FPM y Nginx
-CMD service nginx start && php-fpm
+CMD ["nginx", "-g", "daemon off;"]
+
 
 
 
